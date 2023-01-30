@@ -16,6 +16,7 @@ import { LoggerService } from 'src/logger/logger.service'
   cors: {
     origin: '*',
   },
+  path: '/',
 })
 export class EventsGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
@@ -34,7 +35,7 @@ export class EventsGateway
   joinRoom(@ConnectedSocket() client: Socket, @MessageBody() roomName: string) {
     client.join(roomName)
     client.to(roomName).emit('welcome')
-    this.server.sockets.emit('room_change', this.serverRoomChange())
+    this.serverRoomChange()
     return
   }
 
@@ -91,12 +92,9 @@ export class EventsGateway
         adapter: { rooms, sids },
       },
     } = this.server
-    const publicRooms: string[] = []
-    rooms.forEach((_, key) => {
-      if (sids.get(key) === undefined) {
-        publicRooms.push(key)
-      }
-    })
-    this.server.sockets.emit('room_change', publicRooms)
+    this.server.sockets.emit(
+      'room_change',
+      Array.from(rooms.keys()).filter((key) => sids.get(key) === undefined),
+    )
   }
 }
