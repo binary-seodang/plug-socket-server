@@ -36,7 +36,7 @@ export class EventsGateway
     client.join(roomName)
     client.to(roomName).emit('welcome')
     this.serverRoomChange()
-    return
+    return roomName
   }
 
   @SubscribeMessage('offer')
