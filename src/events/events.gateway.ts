@@ -33,7 +33,7 @@ export class EventsGateway
   @SubscribeMessage('join_room')
   joinRoom(@ConnectedSocket() client: Socket, @MessageBody() roomName: string) {
     client.join(roomName)
-    client.to(roomName).emit('welcom')
+    client.to(roomName).emit('welcome')
     this.server.sockets.emit('room_change', this.serverRoomChange())
     return
   }
