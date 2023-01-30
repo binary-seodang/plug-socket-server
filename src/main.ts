@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { SwaggerModule } from '@nestjs/swagger'
 import { DocumentBuilder } from '@nestjs/swagger/dist'
@@ -14,6 +15,6 @@ async function bootstrap() {
   const documnet = SwaggerModule.createDocument(app, config)
   SwaggerModule.setup('api', app, documnet)
   await app.listen(PORT)
-  console.log(`app listen on port : ${PORT}`)
+  new Logger().localInstance.log(`app listen on port : ${PORT}`)
 }
 bootstrap()

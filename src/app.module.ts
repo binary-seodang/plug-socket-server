@@ -1,6 +1,8 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { LoggerMiddleware } from './logger/logger.middleware'
+import { EventsModule } from './events/events.module'
+import { LoggerModule } from './logger/logger.module'
 import joi from 'joi'
 @Module({
   imports: [
@@ -15,6 +17,8 @@ import joi from 'joi'
         PORT: joi.string().required(),
       }),
     }),
+    LoggerModule,
+    EventsModule,
   ],
   controllers: [],
   providers: [],
