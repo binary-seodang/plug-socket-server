@@ -31,10 +31,40 @@ export class EventsGateway
    * ex) client-side -> socket.emit('join_room' , 'myRoomName' , data => console.log(data))
    * 일단 ws방식으로 구현 후 socket io 방식으로 변경하는게 좋을듯
    */
+  @SubscribeMessage('set_nickname')
+  setNickname(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() nickname: string,
+  ) {
+    const user = this.findCurrentClient(client)
+    user['nickname'] = nickname
+    return nickname
+  }
+
   @SubscribeMessage('join_room')
-  joinRoom(@ConnectedSocket() client: Socket, @MessageBody() roomName: string) {
+  async joinRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() roomName: string,
+  ) {
+    const { nickname } = this.findCurrentClient(client)
+    if (!nickname) {
+      return { ok: false }
+    }
     client.join(roomName)
-    client.to(roomName).emit('welcome')
+    const userList = await this.findJointedUsers(roomName)
+    client.to(roomName).emit('welcome', { nickname, userList })
+    this.serverRoomChange()
+    return { nickname, userList, ok: true }
+  }
+
+  @SubscribeMessage('leave_room')
+  async leaveRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() roomName: string,
+  ) {
+    await client.leave(roomName)
+    const userList = await this.findJointedUsers(roomName)
+    client.to(roomName).emit('leave', { userList })
     this.serverRoomChange()
     return roomName
   }
@@ -64,6 +94,7 @@ export class EventsGateway
     @MessageBody('ice') ice: any,
     @MessageBody('roomName') roomName: string,
   ) {
+    console.log(ice, 'ice')
     client.to(roomName).emit('ice', ice)
   }
   handleConnection(@ConnectedSocket() client: Socket) {
@@ -84,6 +115,19 @@ export class EventsGateway
     // })
     const serverCount = await server.sockets.adapter.serverCount()
     this.logger.log(`serverCount : ${serverCount}`)
+  }
+
+  private async findJointedUsers(roomName: string) {
+    const socketsInCurrentRoom = await this.server.sockets
+      .in(roomName)
+      .fetchSockets()
+    return socketsInCurrentRoom.map((socket) => socket['nickname'])
+  }
+
+  private findCurrentClient(client: Socket) {
+    return this.server.sockets.sockets.get(client.id) as Socket & {
+      nickname: string
+    }
   }
 
   private serverRoomChange() {
