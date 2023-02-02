@@ -11,6 +11,7 @@ import {
 } from '@nestjs/websockets/interfaces'
 import { Server, Socket } from 'socket.io'
 import { LoggerService } from 'src/logger/logger.service'
+import { getServerRoomDto } from './dtos/gateway.dto'
 
 @WebSocketGateway(3050, {
   cors: {
@@ -37,6 +38,11 @@ export class EventsGateway
     client.to(roomName).emit('welcome')
     this.serverRoomChange()
     return roomName
+  }
+
+  @SubscribeMessage('get_all_rooms')
+  async getAllRoomList() {
+    return this.serverRoomChange()
   }
 
   @SubscribeMessage('offer')
@@ -86,15 +92,32 @@ export class EventsGateway
     this.logger.log(`serverCount : ${serverCount}`)
   }
 
-  private serverRoomChange() {
+  private async findJoinedUsers(roomName: string) {
+    const socketsInCurrentRoom = await this.server.sockets
+      .in(roomName)
+      .fetchSockets()
+    return socketsInCurrentRoom.map((socket) => socket['nickname'])
+  }
+
+  private findCurrentClient(client: Socket) {
+    return this.server.sockets.sockets.get(client.id) as Socket & {
+      nickname: string
+    }
+  }
+
+  private serverRoomChange(roomChangeArgs?: Partial<getServerRoomDto>) {
+    const { isEmit } = roomChangeArgs || { isEmit: true }
     const {
       sockets: {
         adapter: { rooms, sids },
       },
     } = this.server
-    this.server.sockets.emit(
-      'room_change',
-      Array.from(rooms.keys()).filter((key) => sids.get(key) === undefined),
+    const AllRooms = Array.from(rooms.keys()).filter(
+      (key) => sids.get(key) === undefined,
     )
+    if (isEmit) {
+      this.server.sockets.emit('room_change', AllRooms)
+    }
+    return AllRooms
   }
 }
