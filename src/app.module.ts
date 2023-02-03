@@ -5,6 +5,7 @@ import { EventsModule } from './events/events.module'
 import { LoggerModule } from './logger/logger.module'
 import joi from 'joi'
 import { WorkspacesModule } from './workspaces/workspaces.module'
+import { JwtModule } from './jwt/jwt.module'
 
 @Module({
   imports: [
@@ -20,11 +21,18 @@ import { WorkspacesModule } from './workspaces/workspaces.module'
         REDIS_HOST: joi.string().required(),
         REDIS_PORT: joi.string().required(),
         REDIS_PASSWORD: joi.string().required(),
+        JWT_PRIVATE_KEY: joi.string().required(),
+        JWT_PUBLIC_KEY: joi.string().required(),
       }),
     }),
     LoggerModule,
     WorkspacesModule,
     EventsModule,
+    JwtModule.forRoot({
+      isRSA: true,
+      priveKey: process.env.JWT_PRIVATE_KEY,
+      pubkey: process.env.JWT_PUBLIC_KEY,
+    }),
   ],
   controllers: [],
   providers: [],
@@ -32,5 +40,10 @@ import { WorkspacesModule } from './workspaces/workspaces.module'
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(LoggerMiddleware).forRoutes('*')
+    consumer
+      .apply(LoggerMiddleware)
+      .exclude('/login')
+      .exclude('/')
+      .forRoutes('*')
   }
 }
