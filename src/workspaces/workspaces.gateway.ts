@@ -27,12 +27,6 @@ export class WorkspacesGateway
     this.logger.setContext('WorkspaceGateway')
   }
 
-  /**
-   * TODO: Socket Handler return value를 통해 클라이언트 내에서 이벤트 핸들링 가능
-   * ex) client-side -> socket.emit('join_room' , 'myRoomName' , data => console.log(data))
-   * 일단 ws방식으로 구현 후 socket io 방식으로 변경하는게 좋을듯
-   */
-
   @SubscribeMessage('join_room')
   async joinRoom(
     @ConnectedSocket() client: Socket,

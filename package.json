@@ -29,7 +29,9 @@
     "@nestjs/swagger": "^6.1.4",
     "@nestjs/websockets": "^9.2.1",
     "@socket.io/redis-adapter": "^8.0.1",
+    "@types/jsonwebtoken": "^9.0.1",
     "@types/socket.io": "^3.0.2",
+    "jsonwebtoken": "^9.0.0",
     "redis": "^4.6.4",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.2.0"

@@ -95,7 +95,6 @@ export class EventsGateway
     @MessageBody('ice') ice: any,
     @MessageBody('roomName') roomName: string,
   ) {
-    console.log(ice, 'ice')
     client.to(roomName).emit('ice', ice)
   }
 

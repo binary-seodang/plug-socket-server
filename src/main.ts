@@ -1,3 +1,4 @@
+import { SocketIOAdapter } from './sockets/socket.adapter'
 import { Logger } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { SwaggerModule } from '@nestjs/swagger'
@@ -19,8 +20,9 @@ async function bootstrap() {
   const redisIoAdapter = new RedisIoAdapter(app)
   await redisIoAdapter.connectToRedis()
   app.useWebSocketAdapter(redisIoAdapter)
-
+  app.useWebSocketAdapter(new SocketIOAdapter(app))
   await app.listen(PORT)
+  // new Logger().localInstance.log(`app listen on port : ${PORT}`)
   new Logger().localInstance.log(`app listen on port : ${PORT}`)
 }
 bootstrap()
