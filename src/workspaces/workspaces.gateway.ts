@@ -10,21 +10,21 @@ import {
   OnGatewayInit,
 } from '@nestjs/websockets/interfaces'
 import { Namespace, Socket } from 'socket.io'
+import { getServerRoomDto } from 'src/events/dtos/gateway.dto'
 import { LoggerService } from 'src/logger/logger.service'
-import { getServerRoomDto } from './dtos/gateway.dto'
 
 @WebSocketGateway(3050, {
   cors: {
     origin: '*',
   },
-  namespace: '/',
+  namespace: '/workspace',
 })
-export class EventsGateway
+export class WorkspacesGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
 {
   @WebSocketServer() public io: Namespace
   constructor(private readonly logger: LoggerService) {
-    this.logger.setContext('EventsGateway')
+    this.logger.setContext('WorkspaceGateway')
   }
 
   /**
@@ -32,22 +32,14 @@ export class EventsGateway
    * ex) client-side -> socket.emit('join_room' , 'myRoomName' , data => console.log(data))
    * 일단 ws방식으로 구현 후 socket io 방식으로 변경하는게 좋을듯
    */
-  @SubscribeMessage('set_nickname')
-  setNickname(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() nickname: string,
-  ) {
-    const user = this.findCurrentClient(client)
-    user['nickname'] = nickname
-    return nickname
-  }
 
   @SubscribeMessage('join_room')
   async joinRoom(
     @ConnectedSocket() client: Socket,
     @MessageBody() roomName: string,
   ) {
-    const { nickname } = this.findCurrentClient(client)
+    const { nickname } = this.findCurrentClient(client) || {}
+    console.log(nickname)
     if (!nickname) {
       return { ok: false }
     }
@@ -95,7 +87,6 @@ export class EventsGateway
     @MessageBody('ice') ice: any,
     @MessageBody('roomName') roomName: string,
   ) {
-    console.log(ice, 'ice')
     client.to(roomName).emit('ice', ice)
   }
 
