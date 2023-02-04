@@ -17,7 +17,7 @@ import { LoggerService } from 'src/logger/logger.service'
   cors: {
     origin: '*',
   },
-  namespace: '/workspace',
+  namespace: 'workspace',
 })
 export class WorkspacesGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit

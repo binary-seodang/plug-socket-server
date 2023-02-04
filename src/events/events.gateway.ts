@@ -1,3 +1,4 @@
+import { Inject } from '@nestjs/common'
 import { SubscribeMessage, WebSocketGateway } from '@nestjs/websockets'
 import {
   ConnectedSocket,
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/websockets/interfaces'
 import { Namespace, Socket } from 'socket.io'
 import { LoggerService } from 'src/logger/logger.service'
+import { PrismaService } from 'src/prisma/prisma.service'
 import { getServerRoomDto } from './dtos/gateway.dto'
 
 @WebSocketGateway(3050, {
@@ -18,12 +20,16 @@ import { getServerRoomDto } from './dtos/gateway.dto'
     origin: '*',
   },
   namespace: '/',
+  transports: ['websocket'],
 })
 export class EventsGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
 {
   @WebSocketServer() public io: Namespace
-  constructor(private readonly logger: LoggerService) {
+  constructor(
+    @Inject(PrismaService) private readonly prismaService: PrismaService,
+    private readonly logger: LoggerService,
+  ) {
     this.logger.setContext('EventsGateway')
   }
 
@@ -33,12 +39,25 @@ export class EventsGateway
    * 일단 ws방식으로 구현 후 socket io 방식으로 변경하는게 좋을듯
    */
   @SubscribeMessage('set_nickname')
-  setNickname(
+  async setNickname(
     @ConnectedSocket() client: Socket,
     @MessageBody() nickname: string,
   ) {
     const user = this.findCurrentClient(client)
     user['nickname'] = nickname
+    const upsertedUser = await this.prismaService.user.upsert({
+      where: {
+        nickname,
+      },
+      update: {
+        nickname,
+      },
+      create: {
+        nickname,
+      },
+    })
+    console.log(upsertedUser)
+    this.logger.debug(`${nickname} change`)
     return nickname
   }
 
