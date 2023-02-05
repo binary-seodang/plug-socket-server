@@ -15,17 +15,20 @@ export class JwtService {
     const token = jwt.sign(payload, this.options.priveKey, {
       algorithm: this.algorithm,
     })
-    console.log(token)
     return token
   }
 
   verify(token: string) {
-    return jwt.verify(
-      token,
-      this.options.isRSA ? this.options.pubkey : this.options.priveKey,
-      {
-        algorithms: [this.algorithm],
-      },
-    )
+    try {
+      return jwt.verify(
+        token,
+        this.options.isRSA ? this.options.pubkey : this.options.priveKey,
+        {
+          algorithms: [this.algorithm],
+        },
+      )
+    } catch {
+      return false
+    }
   }
 }

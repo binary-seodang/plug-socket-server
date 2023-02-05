@@ -5,6 +5,8 @@ import { DocumentBuilder } from '@nestjs/swagger/dist'
 import { AppModule } from './app.module'
 import { RedisIoAdapter } from './redis/redis.adapter'
 
+declare const module: any
+
 async function bootstrap() {
   const PORT = process.env.PORT || 3000
   const app = await NestFactory.create(AppModule)
@@ -25,5 +27,10 @@ async function bootstrap() {
   await app.listen(PORT, () => {
     new Logger().localInstance.log(`app listen on port : ${PORT}`)
   })
+
+  if (module.hot) {
+    module.hot.accept()
+    module.hot.dispose(() => app.close())
+  }
 }
 bootstrap()

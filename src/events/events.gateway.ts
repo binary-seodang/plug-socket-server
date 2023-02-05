@@ -1,4 +1,5 @@
-import { Inject } from '@nestjs/common'
+import { WsExceptionFilter } from './../sockets/sockets-exception.filter'
+import { Inject, UseFilters, Logger } from '@nestjs/common'
 import { SubscribeMessage, WebSocketGateway } from '@nestjs/websockets'
 import {
   ConnectedSocket,
@@ -11,11 +12,14 @@ import {
   OnGatewayInit,
 } from '@nestjs/websockets/interfaces'
 import { Namespace, Socket } from 'socket.io'
-import { LoggerService } from 'src/logger/logger.service'
 import { PrismaService } from 'src/prisma/prisma.service'
 import { getServerRoomDto } from './dtos/gateway.dto'
+import { AuthSocket, WSAuthMiddleware } from 'src/sockets/sockets.middleware'
+import { UsersService } from 'src/users/users.service'
+import { JwtService } from 'src/jwt/jwt.service'
 
-@WebSocketGateway(3050, {
+@UseFilters(new WsExceptionFilter())
+@WebSocketGateway({
   cors: {
     origin: '*',
   },
@@ -25,19 +29,15 @@ import { getServerRoomDto } from './dtos/gateway.dto'
 export class EventsGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
 {
-  @WebSocketServer() public io: Namespace
+  private readonly logger = new Logger(EventsGateway.name)
   constructor(
     @Inject(PrismaService) private readonly prismaService: PrismaService,
-    private readonly logger: LoggerService,
-  ) {
-    this.logger.setContext('EventsGateway')
-  }
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+  ) {}
 
-  /**
-   * TODO: Socket Handler return value를 통해 클라이언트 내에서 이벤트 핸들링 가능
-   * ex) client-side -> socket.emit('join_room' , 'myRoomName' , data => console.log(data))
-   * 일단 ws방식으로 구현 후 socket io 방식으로 변경하는게 좋을듯
-   */
+  @WebSocketServer() public io: Namespace
+
   @SubscribeMessage('set_nickname')
   async setNickname(
     @ConnectedSocket() client: Socket,
@@ -56,17 +56,15 @@ export class EventsGateway
         nickname,
       },
     })
-    console.log(upsertedUser)
     this.logger.debug(`${nickname} change`)
     return nickname
   }
-
   @SubscribeMessage('join_room')
   async joinRoom(
     @ConnectedSocket() client: Socket,
     @MessageBody() roomName: string,
   ) {
-    const { nickname } = this.findCurrentClient(client)
+    const { nickname } = this.findCurrentClient(client) || {}
     if (!nickname) {
       return { ok: false }
     }
@@ -117,7 +115,7 @@ export class EventsGateway
     client.to(roomName).emit('ice', ice)
   }
 
-  handleConnection(@ConnectedSocket() client: Socket) {
+  handleConnection(@ConnectedSocket() client: AuthSocket) {
     this.logger.debug(`connected : ${client.id}`)
     this.logger.debug(`namespace : ${client.nsp.name}`)
     this.serverRoomChange()
@@ -129,6 +127,7 @@ export class EventsGateway
   }
 
   async afterInit(io: Namespace) {
+    io.use(WSAuthMiddleware(this.jwtService, this.usersService))
     const serverCount = await io.server.sockets.adapter.serverCount()
     this.logger.log(`serverCount : ${serverCount}`)
   }
