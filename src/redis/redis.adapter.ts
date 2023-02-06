@@ -8,6 +8,7 @@ import { Server } from 'socket.io'
 
 export class RedisIoAdapter extends IoAdapter {
   private readonly configService: ConfigService
+
   constructor(private readonly app: INestApplication) {
     super(app)
     this.configService = app.get(ConfigService)
@@ -27,9 +28,21 @@ export class RedisIoAdapter extends IoAdapter {
   }
 
   createIOServer(port: number, options?: ServerOptions): any {
-    const server: Server = super.createIOServer(port, options)
+    const server: Server = super.createIOServer(port, { ...options })
     server.adapter(this.adapterConstructor)
-
     return server
   }
+
+  // bindClientConnect(server: any, callback) {
+  //   // console.log(server)
+  //   console.log(callback())
+  //   // if (callback) {
+  //   //   callback()
+  //   // }
+  // }
+  // bindClientDisconnect(client: TClient, callback: Function): void;
+  // close(server: TServer): Promise<void>;
+  // dispose(): Promise<void>;
+  // abstract create(port: number, options?: TOptions): TServer;
+  // abstract bindMessageHandlers(client: TClient, handlers: WsMessageHandler[], transform: (data: any) => Observable<any>): any;
 }

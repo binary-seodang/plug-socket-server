@@ -1,7 +1,11 @@
-import { SubscribeMessage, WebSocketGateway } from '@nestjs/websockets'
+import { JwtService } from 'src/jwt/jwt.service'
+import { UsersService } from 'src/users/users.service'
+import { WSAuthMiddleware } from 'src/sockets/sockets.middleware'
+import { UseFilters, Logger } from '@nestjs/common'
+import { WebSocketGateway } from '@nestjs/websockets'
 import {
   ConnectedSocket,
-  MessageBody,
+  SubscribeMessage,
   WebSocketServer,
 } from '@nestjs/websockets/decorators'
 import {
@@ -11,88 +15,30 @@ import {
 } from '@nestjs/websockets/interfaces'
 import { Namespace, Socket } from 'socket.io'
 import { getServerRoomDto } from 'src/events/dtos/gateway.dto'
-import { LoggerService } from 'src/logger/logger.service'
 
-@WebSocketGateway(3050, {
+import { WsExceptionFilter } from 'src/sockets/sockets-exception.filter'
+
+@UseFilters(new WsExceptionFilter())
+@WebSocketGateway({
   cors: {
     origin: '*',
   },
   namespace: '/workspace',
+  transports: ['websocket'],
 })
 export class WorkspacesGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit
 {
+  private readonly logger = new Logger(WorkspacesGateway.name)
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+  ) {}
   @WebSocketServer() public io: Namespace
-  constructor(private readonly logger: LoggerService) {
-    this.logger.setContext('WorkspaceGateway')
-  }
-
-  /**
-   * TODO: Socket Handler return value를 통해 클라이언트 내에서 이벤트 핸들링 가능
-   * ex) client-side -> socket.emit('join_room' , 'myRoomName' , data => console.log(data))
-   * 일단 ws방식으로 구현 후 socket io 방식으로 변경하는게 좋을듯
-   */
-
-  @SubscribeMessage('join_room')
-  async joinRoom(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() roomName: string,
-  ) {
-    const { nickname } = this.findCurrentClient(client) || {}
-    console.log(nickname)
-    if (!nickname) {
-      return { ok: false }
-    }
-    client.join(roomName)
-    const userList = await this.findJoinedUsers(roomName)
-    client.to(roomName).emit('welcome', { nickname, userList })
-    this.serverRoomChange()
-    return { nickname, userList, ok: true }
-  }
-
-  @SubscribeMessage('leave_room')
-  async leaveRoom(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() roomName: string,
-  ) {
-    await client.leave(roomName)
-    const userList = await this.findJoinedUsers(roomName)
-    client.nsp.to(roomName).emit('leave', { userList })
-    this.serverRoomChange()
-    return roomName
-  }
-
-  @SubscribeMessage('offer')
-  requestRTCOffer(
-    @ConnectedSocket() client: Socket,
-    // TODO : Offer Type assertion
-    @MessageBody('offer') offer: any,
-    @MessageBody('roomName') roomName: string,
-  ) {
-    client.to(roomName).emit('offer', offer)
-  }
-
-  @SubscribeMessage('answer')
-  sendRTCanswer(
-    @ConnectedSocket() client: Socket,
-    @MessageBody('answer') answer: string,
-    @MessageBody('roomName') roomName: string,
-  ) {
-    client.to(roomName).emit('answer', answer)
-  }
-
-  @SubscribeMessage('ice')
-  requestRTCICECandidate(
-    @ConnectedSocket() client: Socket,
-    @MessageBody('ice') ice: any,
-    @MessageBody('roomName') roomName: string,
-  ) {
-    client.to(roomName).emit('ice', ice)
-  }
 
   handleConnection(@ConnectedSocket() client: Socket) {
-    this.logger.debug(`connected : ${client.id}`)
-    this.logger.debug(`namespace : ${client.nsp.name}`)
+    this.logger.debug(`workspace connected : ${client.id}`)
+    this.logger.debug(`workspace namespace : ${client.nsp.name}`)
     this.serverRoomChange()
   }
 
@@ -102,21 +48,9 @@ export class WorkspacesGateway
   }
 
   async afterInit(io: Namespace) {
+    io.use(WSAuthMiddleware(this.jwtService, this.usersService))
     const serverCount = await io.server.sockets.adapter.serverCount()
     this.logger.log(`serverCount : ${serverCount}`)
-  }
-
-  private async findJoinedUsers(roomName: string) {
-    const socketsInCurrentRoom = await this.io.server.sockets
-      .in(roomName)
-      .fetchSockets()
-    return socketsInCurrentRoom.map((socket) => socket['nickname'])
-  }
-
-  private findCurrentClient(client: Socket) {
-    return this.io.server.sockets.sockets.get(client.id) as Socket & {
-      nickname: string
-    }
   }
 
   private serverRoomChange(roomChangeArgs?: Partial<getServerRoomDto>) {

@@ -22,8 +22,6 @@ module.exports = {
           ]
         },
         'body-max-line-length': ({ body }) => {
-          console.log(body)
-          console.log(body.length)
           const isBodyMatch = body && body.length <= 72
           return [!body, isBodyMatch, '본문은 72자 이하로 작성해주세요']
         },
